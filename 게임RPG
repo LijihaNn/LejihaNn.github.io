@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>간단한 RPG 게임</title>
+
+  <style>
+    body {
+      background-color: #f0f0f0;
+      font-family: Arial;
+      text-align: center;
+    }
+
+    #gameArea {
+      width: 600px;
+      height: 400px;
+      background-color: white;
+      margin: 20px auto;
+      border: 2px solid black;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .player, .monster {
+      width: 40px;
+      height: 40px;
+      position: absolute;
+      border-radius: 5px;
+    }
+
+    .player {
+      background-color: blue;
+    }
+
+    .monster {
+      background-color: red;
+    }
+
+    #info {
+      margin-top: 10px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>간단한 RPG 게임</h1>
+  <p>화살표로 이동하고, A키로 공격!</p>
+
+  <div id="gameArea">
+    <div class="player" id="player"></div>
+    <div class="monster" id="monster"></div>
+  </div>
+
+  <div id="info">
+    플레이어 HP: <span id="playerHP">100</span> |
+    몬스터 HP: <span id="monsterHP">50</span>
+  </div>
+
+  <script>
+    const player = document.getElementById("player");
+    const monster = document.getElementById("monster");
+    const playerHPText = document.getElementById("playerHP");
+    const monsterHPText = document.getElementById("monsterHP");
+
+    let playerX = 50, playerY = 50;
+    let monsterX = 300, monsterY = 200;
+
+    let playerHP = 100;
+    let monsterHP = 50;
+
+    // 초기 위치 적용
+    player.style.left = playerX + "px";
+    player.style.top = playerY + "px";
+    monster.style.left = monsterX + "px";
+    monster.style.top = monsterY + "px";
+
+    // 키보드로 움직이기
+    document.addEventListener("keydown", (event) => {
+      const key = event.key;
+
+      if (key === "ArrowUp") playerY -= 10;
+      if (key === "ArrowDown") playerY += 10;
+      if (key === "ArrowLeft") playerX -= 10;
+      if (key === "ArrowRight") playerX += 10;
+
+      if (key === "a" || key === "A") {
+        // 몬스터 근처면 공격
+        const dist = Math.hypot(playerX - monsterX, playerY - monsterY);
+        if (dist < 60) {
+          monsterHP -= 10;
+          monsterHPText.textContent = monsterHP;
+
+          if (monsterHP <= 0) {
+            alert("승리! 몬스터를 물리쳤습니다!");
+          }
+        }
+      }
+
+      // 화면에 위치 적용
+      player.style.left = playerX + "px";
+      player.style.top = playerY + "px";
+    });
+  </script>
+
+</body>
+</html>
