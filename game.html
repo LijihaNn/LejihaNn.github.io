@@ -2,106 +2,90 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>간단한 RPG 게임</title>
-
+  <title>Simple Mario (No Images)</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <style>
-    body {
-      background-color: #f0f0f0;
-      font-family: Arial;
-      text-align: center;
-    }
-
-    #gameArea {
-      width: 600px;
-      height: 400px;
-      background-color: white;
-      margin: 20px auto;
-      border: 2px solid black;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .player, .monster {
-      width: 40px;
-      height: 40px;
-      position: absolute;
-      border-radius: 5px;
-    }
-
-    .player {
-      background-color: blue;
-    }
-
-    .monster {
-      background-color: red;
-    }
-
-    #info {
-      margin-top: 10px;
-      font-size: 18px;
-    }
+    body { margin: 0; background: black; }
   </style>
 </head>
-
 <body>
-  <h1>간단한 RPG 게임</h1>
-  <p>화살표로 이동하고, A키로 공격!</p>
 
-  <div id="gameArea">
-    <div class="player" id="player"></div>
-    <div class="monster" id="monster"></div>
-  </div>
+<script>
+// 게임 설정
+const config = {
+  type: Phaser.AUTO,
+  width: 960,
+  height: 540,
+  physics: {
+    default: 'arcade',
+    arcade: { gravity: { y: 900 }, debug: false }
+  },
+  scene: [MainScene]
+};
+new Phaser.Game(config);
 
-  <div id="info">
-    플레이어 HP: <span id="playerHP">100</span> |
-    몬스터 HP: <span id="monsterHP">50</span>
-  </div>
+// ---------------------------
+// 메인 씬
+// ---------------------------
+function MainScene() {}
 
-  <script>
-    const player = document.getElementById("player");
-    const monster = document.getElementById("monster");
-    const playerHPText = document.getElementById("playerHP");
-    const monsterHPText = document.getElementById("monsterHP");
+MainScene.prototype.preload = function () {};
 
-    let playerX = 50, playerY = 50;
-    let monsterX = 300, monsterY = 200;
+MainScene.prototype.create = function () {
+  // 배경색
+  this.cameras.main.setBackgroundColor('#87CEEB');
 
-    let playerHP = 100;
-    let monsterHP = 50;
+  // 플레이어
+  this.player = this.add.rectangle(100, 300, 40, 40, 0xff0000);
+  this.physics.add.existing(this.player);
+  this.player.body.setCollideWorldBounds(true);
 
-    // 초기 위치 적용
-    player.style.left = playerX + "px";
-    player.style.top = playerY + "px";
-    monster.style.left = monsterX + "px";
-    monster.style.top = monsterY + "px";
+  // 땅
+  this.ground = this.add.rectangle(480, 520, 960, 40, 0x008800);
+  this.physics.add.existing(this.ground, true);
+  this.physics.add.collider(this.player, this.ground);
 
-    // 키보드로 움직이기
-    document.addEventListener("keydown", (event) => {
-      const key = event.key;
+  // 몬스터
+  this.enemy = this.add.rectangle(600, 480, 40, 40, 0x0000ff);
+  this.physics.add.existing(this.enemy);
+  this.enemy.body.setCollideWorldBounds(true);
+  this.enemy.body.setVelocityX(-100);
+  this.enemy.body.setBounce(1, 0);
+  this.physics.add.collider(this.enemy, this.ground);
 
-      if (key === "ArrowUp") playerY -= 10;
-      if (key === "ArrowDown") playerY += 10;
-      if (key === "ArrowLeft") playerX -= 10;
-      if (key === "ArrowRight") playerX += 10;
+  // 코인
+  this.coin = this.add.rectangle(400, 440, 30, 30, 0xffff00);
+  this.physics.add.existing(this.coin);
+  this.coin.body.setAllowGravity(false);
 
-      if (key === "a" || key === "A") {
-        // 몬스터 근처면 공격
-        const dist = Math.hypot(playerX - monsterX, playerY - monsterY);
-        if (dist < 60) {
-          monsterHP -= 10;
-          monsterHPText.textContent = monsterHP;
+  this.physics.add.overlap(this.player, this.coin, () => {
+    this.coin.destroy();
+  });
 
-          if (monsterHP <= 0) {
-            alert("승리! 몬스터를 물리쳤습니다!");
-          }
-        }
-      }
+  // 입력키
+  this.cursors = this.input.keyboard.createCursorKeys();
+};
 
-      // 화면에 위치 적용
-      player.style.left = playerX + "px";
-      player.style.top = playerY + "px";
-    });
-  </script>
+MainScene.prototype.update = function () {
+  const body = this.player.body;
+
+  // 기본 이동 멈춤
+  body.setVelocityX(0);
+
+  // 좌우 이동
+  if (this.cursors.left.isDown) {
+    body.setVelocityX(-200);
+  }
+  if (this.cursors.right.isDown) {
+    body.setVelocityX(200);
+  }
+
+  // 점프
+  if (this.cursors.up.isDown && body.onFloor()) {
+    body.setVelocityY(-450);
+  }
+};
+</script>
 
 </body>
 </html>
