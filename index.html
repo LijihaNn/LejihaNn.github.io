@@ -1,35 +1,170 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>내 GitHub 웹사이트</title>
-
+  <meta charset="UTF-8" />
+  <title>GB RPG - Single File</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <style>
-    .red-btn {
-      background-color: red;
+    body { margin: 0; background: #000; }
+    canvas { display: block; margin: auto; }
+    #uiBox {
+      position: fixed;
+      left: 50%; transform: translateX(-50%);
+      bottom: 10px;
+      width: 600px;
+      padding: 15px;
+      background: #222;
       color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
-      transition: 0.2s;
-    }
-
-    .red-btn:hover {
-      background-color: darkred;
+      font-family: monospace;
+      border: 3px solid white;
+      display: none;
     }
   </style>
 </head>
-
 <body>
-  <h1>헤헤헿</h1>
-  <p>하이.</p>
 
-  <!-- 여기에 버튼들을 넣으면 됨! -->
-  <button class="red-btn">시작하기</button>
-  <button onclick="location.href='game.html'">게임 시작!</button>
+<div id="uiBox"></div>
+
+<script>
+class MainScene extends Phaser.Scene {
+  constructor() { super("main"); }
+
+  preload() {}
+
+  create() {
+    // 플레이어
+    this.player = this.add.rectangle(400, 300, 18, 18, 0x00ff00);
+    this.physics.add.existing(this.player);
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.canMove = true;
+
+    // 풀숲 영역 (랜덤 조우)
+    this.grass = this.physics.add.staticGroup();
+    for (let i = 0; i < 10; i++) {
+      let g = this.add.rectangle(200 + i*50, 400, 32, 16, 0x116611);
+      this.grass.add(g);
+    }
+
+    this.physics.add.overlap(this.player, this.grass, () => {
+      if (Math.random() < 0.02) {  // 2% 확률로 전투 진입
+        this.scene.start("battle");
+      }
+    });
+  }
+
+  update() {
+    if (!this.canMove) return;
+    const sp = 150;
+    const body = this.player.body;
+    body.setVelocity(0);
+
+    if (this.cursors.left.isDown) body.setVelocityX(-sp);
+    else if (this.cursors.right.isDown) body.setVelocityX(sp);
+
+    if (this.cursors.up.isDown) body.setVelocityY(-sp);
+    else if (this.cursors.down.isDown) body.setVelocityY(sp);
+
+    body.velocity.normalize().scale(sp);
+  }
+}
+
+// 인벤토리 저장소
+let INVENTORY = [];
+
+
+// 배틀 씬
+class BattleScene extends Phaser.Scene {
+  constructor() { super("battle"); }
+
+  create() {
+    document.getElementById("uiBox").style.display = "block";
+    this.text = document.getElementById("uiBox");
+
+    // 랜덤 몬스터 생성
+    let rareChance = Math.random();
+    this.monster = {
+      name: rareChance < 0.01 ? "희귀몬" : "야생몬",
+      maxHP: Math.floor(Math.random() * 40 + 30),
+      atk: Math.floor(Math.random() * 10 + 5)
+    };
+    this.monster.hp = this.monster.maxHP;
+
+    this.text.innerHTML = `${this.monster.name} 이(가) 나타났다!<br>
+    HP: ${this.monster.hp}<br><br>
+    [Z] 공격 | [X] 잡기 | [C] 도망`;
+
+    this.input.keyboard.on("keydown-Z", () => this.attackMonster());
+    this.input.keyboard.on("keydown-X", () => this.catchMonster());
+    this.input.keyboard.on("keydown-C", () => this.escape());
+  }
+
+  updateUI() {
+    this.text.innerHTML = `${this.monster.name}<br>
+    HP: ${this.monster.hp}/${this.monster.maxHP}<br><br>
+    [Z] 공격 | [X] 잡기 | [C] 도망`;
+  }
+
+  attackMonster() {
+    this.monster.hp -= 10;
+    if (this.monster.hp <= 0) {
+      this.text.innerHTML = `몬스터를 쓰러뜨렸다!<br>[SPACE]`;
+      this.input.keyboard.once("keydown-SPACE", () => this.exitBattle());
+      return;
+    }
+    this.updateUI();
+  }
+
+  catchMonster() {
+    // HP가 낮을수록 포획률 증가
+    let hpRatio = 1 - (this.monster.hp / this.monster.maxHP);
+    let baseCatch = 0.1;  // 기본 10%
+    let finalRate = baseCatch + hpRatio * 0.4; // 최대 50%
+
+    // 실패 시 도주 (요청 반영!)
+    if (Math.random() > finalRate) {
+      this.text.innerHTML = `잡기에 실패했다...!<br>${this.monster.name} 이(가) 도망갔다!<br>[SPACE]`;
+      this.input.keyboard.once("keydown-SPACE", () => this.exitBattle());
+      return;
+    }
+
+    // 성공
+    INVENTORY.push({
+      name: this.monster.name,
+      hp: this.monster.maxHP,
+      atk: this.monster.atk
+    });
+
+    this.text.innerHTML = `잡았다!<br>
+    인벤토리에 추가됨.<br>
+    총 보유: ${INVENTORY.length}마리<br><br>[SPACE]`;
+    this.input.keyboard.once("keydown-SPACE", () => this.exitBattle());
+  }
+
+  escape() {
+    this.text.innerHTML = `도망쳤다!<br>[SPACE]`;
+    this.input.keyboard.once("keydown-SPACE", () => this.exitBattle());
+  }
+
+  exitBattle() {
+    document.getElementById("uiBox").style.display = "none";
+    this.scene.start("main");
+  }
+}
+
+
+// Phaser 설정
+const config = {
+  type: Phaser.AUTO,
+  width: 800,
+  height: 600,
+  backgroundColor: "#0d3d0d",
+  physics: { default: "arcade", arcade: { debug: false }},
+  scene: [MainScene, BattleScene]
+};
+
+new Phaser.Game(config);
+</script>
 
 </body>
 </html>
-
-
-
