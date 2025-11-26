@@ -1,139 +1,179 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>포켓몬 스타일 게임</title>
-    <style>
-        body { font-family: 'Arial'; padding: 20px; background: #f3f8ff; }
-        h1 { color: #2c3e50; }
-        .box { padding: 15px; border-radius: 10px; background: white; 
-               box-shadow: 0 0 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        button { padding: 10px 20px; margin: 5px; border-radius: 8px; border: none; 
-                 background: #4b7bec; color: white; cursor: pointer; }
-        button:hover { background: #3867d6; }
-        .log { white-space: pre-line; background: #eef3ff; padding: 10px; border-radius: 10px; }
-    </style>
+<meta charset="UTF-8">
+<title>포켓몬 탐험 & 도감 게임</title>
+<style>
+    body { font-family: sans-serif; }
+    #game {
+        width: 320px;
+        height: 320px;
+        image-rendering: pixelated;
+    }
+    #log { white-space: pre-line; margin-top: 10px; height: 80px; overflow-y: auto; }
+    #dex { margin-top: 20px; }
+    .tile { width: 32px; height: 32px; display: inline-block; }
+</style>
 </head>
 <body>
-    <h1>포켓몬 스타일 게임</h1>
 
-    <div class="box">
-        <h3>야생 포켓몬 정보</h3>
-        <p id="wildInfo"></p>
-    </div>
+<h1>포켓몬 탐험 & 도감</h1>
 
-    <div class="box">
-        <h3>내 포켓몬</h3>
-        <p id="myInfo"></p>
-    </div>
+<canvas id="game" width="320" height="320"></canvas>
 
-    <div class="box">
-        <h3>행동</h3>
-        <button id="attackBtn">공격하기</button>
-        <button id="catchBtn">포획하기</button>
-        <button id="runBtn">도망가기</button>
-    </div>
+<p id="log"></p>
+<button id="catchBtn" style="display:none;">포획하기</button>
 
-    <div class="log" id="log"></div>
+<h2>도감</h2>
+<div id="dex"></div>
 
-    <script>
-        // 내 포켓몬 (기본 스타터)
-        let myPokemon = {
-            name: "파이리",
-            maxHp: 45,
-            hp: 45,
-            attack: 12
-        };
+<script>
+// ----------------------------
+// 1. 맵 데이터
+// ----------------------------
+const map = [
+  "##########",
+  "#........#",
+  "#..~~~~..#",
+  "#..~~~~..#",
+  "#..####..#",
+  "#..####..#",
+  "#........#",
+  "##########",
+  "#........#",
+  "##########"
+];
+// . = 평지 / ~ = 풀숲 / # = 벽
 
-        // 야생 포켓몬 목록
-        const wildList = [
-            { name: "피카츄", maxHp: 35, attack: 10, rare: false },
-            { name: "모다피", maxHp: 40, attack: 8, rare: false },
-            { name: "야돈", maxHp: 55, attack: 7, rare: false },
-            { name: "리자몽", maxHp: 80, attack: 18, rare: true },  // 희귀
-            { name: "뮤", maxHp: 100, attack: 20, rare: true }      // 매우 희귀
-        ];
+// ----------------------------
+// 2. 플레이어
+// ----------------------------
+let player = { x: 2, y: 2 };
 
-        let wild = null;
+// ----------------------------
+// 3. 포켓몬 데이터
+// ----------------------------
+const areas = {
+  grass: [
+    { name: "피카츄", rate: 40 },
+    { name: "모다피", rate: 40 },
+    { name: "뮤", rate: 5 },       // 희귀
+    { name: "치코리타", rate: 15 }
+  ]
+};
 
-        function spawnWild() {
-            wild = JSON.parse(JSON.stringify(
-                wildList[Math.floor(Math.random() * wildList.length)]
-            ));
-            wild.hp = wild.maxHp;
+// ----------------------------
+// 4. 도감 저장
+// ----------------------------
+let dex = JSON.parse(localStorage.getItem("dex")) || [];
 
-            log(`야생 ${wild.name} 이(가) 나타났다!`);
-            updateInfo();
-        }
+function updateDex() {
+  const box = document.getElementById("dex");
+  box.innerHTML = dex.length
+    ? dex.join(", ")
+    : "아직 잡은 포켓몬이 없습니다.";
+}
+updateDex();
 
-        function updateInfo() {
-            document.getElementById("wildInfo").innerText =
-                `${wild.name} (HP: ${wild.hp}/${wild.maxHp}) ${wild.rare ? "🌟 희귀" : ""}`;
+// ----------------------------
+// 5. 렌더링
+// ----------------------------
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-            document.getElementById("myInfo").innerText =
-                `${myPokemon.name} (HP: ${myPokemon.hp}/${myPokemon.maxHp})`;
-        }
+function draw() {
+  ctx.clearRect(0, 0, 320, 320);
+  for (let y = 0; y < map.length; y++) {
+    for (let x = 0; x < map[y].length; x++) {
+      const t = map[y][x];
+      if (t === "#") ctx.fillStyle = "#444";
+      else if (t === "~") ctx.fillStyle = "#7bcf5b";
+      else ctx.fillStyle = "#a3d9ff";
+      ctx.fillRect(x * 32, y * 32, 32, 32);
+    }
+  }
 
-        function log(t) {
-            document.getElementById("log").innerText += t + "\n";
-        }
+  // player
+  ctx.fillStyle = "red";
+  ctx.fillRect(player.x * 32 + 8, player.y * 32 + 8, 16, 16);
+}
 
-        // 공격 버튼
-        document.getElementById("attackBtn").onclick = () => {
-            const dmg = Math.floor(Math.random() * myPokemon.attack) + 5;
-            wild.hp = Math.max(0, wild.hp - dmg);
-            log(`내 포켓몬이 ${wild.name}에게 ${dmg} 데미지를 주었다!`);
+// ----------------------------
+// 6. 이동
+// ----------------------------
+function canMove(x, y) {
+  return map[y] && map[y][x] && map[y][x] !== "#";
+}
 
-            if (wild.hp === 0) {
-                log(`${wild.name}을(를) 쓰러뜨렸다!\n새로운 야생 포켓몬 등장!`);
-                spawnWild();
-                return;
-            }
+document.addEventListener("keydown", (e) => {
+  let nx = player.x, ny = player.y;
 
-            wildAttack();
-            updateInfo();
-        };
+  if (e.key === "ArrowUp") ny--;
+  if (e.key === "ArrowDown") ny++;
+  if (e.key === "ArrowLeft") nx--;
+  if (e.key === "ArrowRight") nx++;
 
-        // 야생 포켓몬 반격
-        function wildAttack() {
-            const dmg = Math.floor(Math.random() * wild.attack) + 3;
-            myPokemon.hp = Math.max(0, myPokemon.hp - dmg);
-            log(`야생 ${wild.name}의 공격! ${dmg} 데미지!`);
+  if (canMove(nx, ny)) {
+    player.x = nx;
+    player.y = ny;
+    draw();
+    checkEncounter();
+  }
+});
 
-            if (myPokemon.hp === 0) {
-                log("내 포켓몬이 쓰러졌다… 회복 후 새로운 포켓몬 등장!");
-                myPokemon.hp = myPokemon.maxHp;
-                spawnWild();
-            }
-        }
+// ----------------------------
+// 7. 포켓몬 조우
+// ----------------------------
+let currentWild = null;
 
-        // 포획 버튼
-        document.getElementById("catchBtn").onclick = () => {
-            const hpRatio = wild.hp / wild.maxHp;
-            let catchRate = Math.floor((1 - hpRatio) * 70);  // 최대 70%
-            if (wild.rare) catchRate -= 20; // 희귀는 더 잡기 어려움
-            if (catchRate < 5) catchRate = 5;
+function checkEncounter() {
+  const tile = map[player.y][player.x];
 
-            const roll = Math.random() * 100;
-            log(`포획 시도! 확률: ${catchRate}%`);
+  // 풀숲 위에서 15% 확률로 등장
+  if (tile === "~" && Math.random() < 0.15) {
+    const wild = pickRandomPokemon(areas.grass);
+    currentWild = wild;
+    log(`야생 ${wild.name} 이(가) 나타났다!`);
+    document.getElementById("catchBtn").style.display = "inline-block";
+  }
+}
 
-            if (roll <= catchRate) {
-                log(`🎉 성공! ${wild.name}을(를) 잡았다!\n새로운 야생 포켓몬 등장!`);
-                spawnWild();
-            } else {
-                log("포획 실패! 야생 포켓몬이 도망쳤다!");
-                spawnWild();
-            }
-        };
+function pickRandomPokemon(list) {
+  let sum = list.reduce((a, b) => a + b.rate, 0);
+  let r = Math.random() * sum;
+  for (let p of list) {
+    if ((r -= p.rate) < 0) return p;
+  }
+}
 
-        // 도망가기
-        document.getElementById("runBtn").onclick = () => {
-            log("도망쳤다! 새로운 포켓몬을 찾는 중…");
-            spawnWild();
-        };
+// ----------------------------
+// 8. 포획
+// ----------------------------
+document.getElementById("catchBtn").onclick = () => {
+  if (!currentWild) return;
 
-        // 처음 시작
-        spawnWild();
-    </script>
+  const chance = 50; // 단순화 (50% 확률)
+  const roll = Math.random() * 100;
+
+  if (roll <= chance) {
+    log(`성공! ${currentWild.name} 포획!`);
+    if (!dex.includes(currentWild.name)) dex.push(currentWild.name);
+    localStorage.setItem("dex", JSON.stringify(dex));
+    updateDex();
+  } else {
+    log("포획 실패! 포켓몬이 도망쳤다!");
+  }
+
+  currentWild = null;
+  document.getElementById("catchBtn").style.display = "none";
+};
+
+// ----------------------------
+function log(t) {
+  document.getElementById("log").innerText = t;
+}
+
+draw();
+</script>
 </body>
 </html>
